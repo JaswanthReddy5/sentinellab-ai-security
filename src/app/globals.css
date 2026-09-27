@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+:root {
+  --background: #05070a;
+  --surface: #0b0f16;
+  --surface-2: #10151e;
+  --border: #1e2634;
+  --border-soft: #161c27;
+  --foreground: #e6ebf2;
+  --muted: #8a96a8;
+  --muted-2: #5b6577;
+  --accent: #22d3ee;
+  --accent-strong: #06b6d4;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --danger-strong: #ef4444;
+  --critical: #fb7185;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-strong: var(--danger-strong);
+  --color-critical: var(--critical);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.25);
+  color: #ffffff;
+}
+
+* {
+  scrollbar-color: #2a3241 var(--surface);
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+::-webkit-scrollbar-thumb {
+  background: #2a3241;
+  border-radius: 8px;
+}
+
+.mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.card-grid-fade {
+  background-image:
+    linear-gradient(to bottom, rgba(34, 211, 238, 0.04), transparent 60%),
+    radial-gradient(circle at 20% 0%, rgba(34, 211, 238, 0.08), transparent 40%);
+}
+
+@keyframes scan-line {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+.animate-scan {
+  animation: scan-line 2.2s ease-in-out infinite;
+}
