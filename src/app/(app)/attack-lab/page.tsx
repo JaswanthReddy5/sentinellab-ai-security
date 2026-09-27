@@ -1,12 +1,16 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { getStore } from "@/lib/data/store";
-
-export const dynamic = "force-dynamic";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { AttackLabPanel } from "@/components/attacklab/AttackLabPanel";
-import { ATTACK_CATEGORIES } from "@/lib/categories";
-import { MUTATION_TYPES } from "@/lib/categories";
+import { AttackCategorySweep } from "@/components/attacklab/AttackCategorySweep";
+import { ATTACK_CATEGORIES, MUTATION_TYPES } from "@/lib/categories";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
+
+export const dynamic = "force-dynamic";
+
+const FLOW_STEPS = ["Seed Attack", "Mutation Engine", "Attack Variants", "Policy Evaluation", "Bypass Discovery"];
 
 export default async function AttackLabPage() {
   const store = getStore();
@@ -15,13 +19,34 @@ export default async function AttackLabPage() {
   return (
     <>
       <PageHeader
-        title="Attack Mutation Lab"
-        description="Explore how seed attacks are transformed into adversarial variants, and test them live against a policy — entirely offline, no LLM required."
+        title="Attack Evolution Lab"
+        description="Mutate known attack patterns to discover security regressions — entirely offline, no LLM required."
       />
+
+      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border-soft bg-surface-2/40 px-4 py-2.5 text-xs text-muted">
+        {FLOW_STEPS.map((step, i) => (
+          <span key={step} className="flex items-center gap-1.5">
+            <span className={i === FLOW_STEPS.length - 1 ? "font-medium text-danger" : "font-medium text-foreground"}>{step}</span>
+            {i < FLOW_STEPS.length - 1 && <ArrowRight size={12} className="text-muted-2" />}
+          </span>
+        ))}
+      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Live Mutation Preview</CardTitle>
+          <div>
+            <CardTitle>Generate &amp; Evaluate a Category</CardTitle>
+            <CardDescription>Every seed × mutation combination for a category, evaluated live against a real policy.</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <AttackCategorySweep policies={policies} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Single Mutation Preview</CardTitle>
         </CardHeader>
         <CardContent>
           <AttackLabPanel policies={policies} />
@@ -33,7 +58,12 @@ export default async function AttackLabPage() {
           <CardHeader>
             <div>
               <CardTitle>Attack Categories</CardTitle>
-              <CardDescription>12 categories tracked across every test run.</CardDescription>
+              <CardDescription>
+                12 categories tracked across every test run.{" "}
+                <Link href="/attack-research" className="text-accent hover:underline">
+                  Read the security research →
+                </Link>
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="p-0">

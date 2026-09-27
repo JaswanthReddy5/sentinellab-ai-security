@@ -1,7 +1,11 @@
 import type {
   AttackCategoryKey,
+  EvalAction,
+  MutationType,
   PolicyDocument,
+  ResultVerdict,
   SecurityTestCase,
+  Severity,
   TestResult,
   TestRunConfig,
   TestRunStats,
@@ -193,6 +197,72 @@ export function categoryBreakdown(results: TestResult[]): Array<{ category: Atta
     blocked: g.blocked,
     coverage: g.total > 0 ? Number(((g.blocked / g.total) * 100).toFixed(1)) : 100,
   }));
+}
+
+export interface AttackLabVariant {
+  attackId: string;
+  category: AttackCategoryKey;
+  severity: Severity;
+  mutationType: MutationType;
+  sourceSeed: string;
+  testPrompt: string;
+  expectedAction: EvalAction;
+  actualAction: EvalAction;
+  verdict: ResultVerdict;
+  confidence: number;
+  matchedRules: string[];
+  missingDetections: string[];
+}
+
+export interface AttackLabSweepResult {
+  variants: AttackLabVariant[];
+  stats: { generated: number; blocked: number; review: number; bypassed: number };
+}
+
+/**
+ * Generates every (seed, mutation) variant for a category — or all
+ * categories when none is given — and evaluates each against a policy.
+ * Backs both the Attack Lab UI and POST /api/attack-lab. Fully deterministic.
+ */
+export function runAttackLabSweep(
+  doc: PolicyDocument,
+  category: AttackCategoryKey | null,
+  mutationLevel: "low" | "medium" | "high"
+): AttackLabSweepResult {
+  const seeds = category ? seedsForCategories([category]) : seedsForCategories([]);
+  const mutations = mutationsForLevel(mutationLevel);
+
+  const variants: AttackLabVariant[] = [];
+  for (const seed of seeds) {
+    for (const mutation of mutations) {
+      const mutated = mutateSeed(seed, mutation);
+      const outcome = evaluatePolicy(doc, mutated.testPrompt);
+      const verdict = computeVerdict("BLOCK", outcome.action);
+      variants.push({
+        attackId: mutated.attackId,
+        category: mutated.category,
+        severity: mutated.severity,
+        mutationType: mutated.mutationType,
+        sourceSeed: mutated.originalSeed,
+        testPrompt: mutated.testPrompt,
+        expectedAction: "BLOCK",
+        actualAction: outcome.action,
+        verdict,
+        confidence: outcome.confidence,
+        matchedRules: outcome.matchedRules,
+        missingDetections: outcome.missingDetections,
+      });
+    }
+  }
+
+  const stats = {
+    generated: variants.length,
+    blocked: variants.filter((v) => v.actualAction === "BLOCK").length,
+    review: variants.filter((v) => v.actualAction === "REVIEW").length,
+    bypassed: variants.filter((v) => v.actualAction === "ALLOW").length,
+  };
+
+  return { variants, stats };
 }
 
 export function runFullSuite(
