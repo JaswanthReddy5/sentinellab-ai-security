@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Loader2, TriangleAlert, ShieldCheck } from "lucide-react";
 import { Select } from "@/components/ui/Select";
 import { Badge, severityTone } from "@/components/ui/Badge";
@@ -151,6 +152,7 @@ export function RegressionExplorer({
                     <TH>Severity</TH>
                     <TH>Previous</TH>
                     <TH>Current</TH>
+                    <TH />
                   </TR>
                 </THead>
                 <TBody>
@@ -164,6 +166,11 @@ export function RegressionExplorer({
                       </TD>
                       <TD className="text-success">{b.previousAction}</TD>
                       <TD className="text-danger">{b.currentAction}</TD>
+                      <TD>
+                        <Link href={`/regression/${regression.id}/bypass/${b.testCaseId}`} className="text-xs font-medium text-accent hover:underline">
+                          Investigate →
+                        </Link>
+                      </TD>
                     </TR>
                   ))}
                 </TBody>
