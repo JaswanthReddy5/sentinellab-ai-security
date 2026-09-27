@@ -1,0 +1,144 @@
+// SentinelLab data model.
+//
+// This schema is the intended production persistence layer once DATABASE_URL
+// (a Postgres connection string, e.g. from Neon) is configured. When no
+// DATABASE_URL is present, the application falls back to a deterministic
+// in-memory store (see src/lib/data/memoryStore.ts) so the deployed demo
+// always works without requiring a provisioned database.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+}
+
+model Policy {
+  id          String          @id @default(cuid())
+  name        String
+  slug        String          @unique
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  versions    PolicyVersion[]
+}
+
+model PolicyVersion {
+  id          String    @id @default(cuid())
+  policy      Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  policyId    String
+  label       String
+  document    Json
+  raw         String
+  format      String // "yaml" | "json"
+  isActive    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  testRuns    TestRun[]
+
+  @@index([policyId])
+}
+
+model AttackCategory {
+  id          String @id @default(cuid())
+  key         String @unique
+  label       String
+  description String
+}
+
+model TestRun {
+  id                String          @id @default(cuid())
+  label             String
+  policyId          String
+  policyName        String
+  policyVersion     PolicyVersion   @relation(fields: [policyVersionId], references: [id], onDelete: Cascade)
+  policyVersionId   String
+  policyVersionLabel String
+  config            Json
+  stats             Json
+  status            String // queued | running | completed | failed
+  createdAt         DateTime        @default(now())
+  completedAt       DateTime?
+  tests             SecurityTest[]
+  results           TestResult[]
+  recommendations   Recommendation[]
+  regressionsAsBase Regression[]    @relation("baselineRun")
+  regressionsAsCur  Regression[]    @relation("currentRun")
+
+  @@index([policyVersionId])
+  @@index([policyId])
+}
+
+model SecurityTest {
+  id             String   @id @default(cuid())
+  run            TestRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId          String
+  source         String // policy_generated | attack_mutation | benign
+  category       String // positive | negative | boundary | benign
+  attackCategory String?
+  mutationType   String?
+  seed           String?
+  prompt         String
+  expectedAction String
+  reason         String
+  severity       String
+  result         TestResult?
+
+  @@index([runId])
+}
+
+model TestResult {
+  id                String       @id @default(cuid())
+  run               TestRun      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId             String
+  test              SecurityTest @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  testCaseId        String       @unique
+  actualAction      String
+  matchedRules      Json
+  missingDetections Json
+  confidence        Float
+  verdict           String
+
+  @@index([runId])
+}
+
+model Regression {
+  id                 String   @id @default(cuid())
+  baselineRun        TestRun  @relation("baselineRun", fields: [baselineRunId], references: [id], onDelete: Cascade)
+  baselineRunId      String
+  currentRun         TestRun  @relation("currentRun", fields: [currentRunId], references: [id], onDelete: Cascade)
+  currentRunId       String
+  previousCoverage   Float
+  currentCoverage    Float
+  changePoints       Float
+  newBypassCount     Int
+  newBypasses        Json
+  categoryComparison Json
+  isRegression       Boolean
+  createdAt          DateTime @default(now())
+
+  @@index([baselineRunId])
+  @@index([currentRunId])
+}
+
+model Recommendation {
+  id             String   @id @default(cuid())
+  run            TestRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId          String
+  category       String?
+  severity       String
+  problem        String
+  recommendation String
+  policySnippet  String
+  createdAt      DateTime @default(now())
+
+  @@index([runId])
+}
