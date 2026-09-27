@@ -82,6 +82,7 @@ export class MemoryStore implements DataStore {
       name: parsed.document.policy.name,
       slug: parsed.document.policy.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
       description: parsed.document.policy.description ?? "",
+      status: "active",
       createdAt: now,
       updatedAt: now,
       versions: [version],
@@ -148,6 +149,10 @@ export class MemoryStore implements DataStore {
 
   async listRegressions(): Promise<Regression[]> {
     return [...getState().regressions].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getRegression(id: string): Promise<Regression | null> {
+    return getState().regressions.find((r) => r.id === id) ?? null;
   }
 
   async saveRegression(regression: Regression): Promise<void> {

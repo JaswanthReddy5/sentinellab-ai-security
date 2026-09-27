@@ -24,6 +24,7 @@ function toPolicy(row: PolicyRow & { versions: PolicyVersionRow[] }): Policy {
     name: row.name,
     slug: row.slug,
     description: row.description ?? "",
+    status: (row.status as Policy["status"]) ?? "active",
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     versions: row.versions.map(toPolicyVersion),
@@ -259,6 +260,11 @@ export class PrismaStore implements DataStore {
       orderBy: { createdAt: "desc" },
     });
     return rows.map(toRegression);
+  }
+
+  async getRegression(id: string): Promise<Regression | null> {
+    const row = await prisma.regression.findUnique({ where: { id }, include: { baselineRun: true, currentRun: true } });
+    return row ? toRegression(row) : null;
   }
 
   async saveRegression(regression: Regression): Promise<void> {

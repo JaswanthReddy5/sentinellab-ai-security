@@ -77,11 +77,14 @@ export interface PolicyDocument {
   tools?: Record<string, ToolPolicy>;
 }
 
+export type PolicyStatus = "active" | "draft" | "archived";
+
 export interface Policy {
   id: string;
   name: string;
   slug: string;
   description: string;
+  status: PolicyStatus;
   createdAt: string;
   updatedAt: string;
   versions: PolicyVersion[];

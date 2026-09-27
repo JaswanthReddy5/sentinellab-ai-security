@@ -28,6 +28,7 @@ export interface DataStore {
   createRun(run: TestRun, results: TestResult[]): Promise<void>;
 
   listRegressions(): Promise<Regression[]>;
+  getRegression(id: string): Promise<Regression | null>;
   saveRegression(regression: Regression): Promise<void>;
 
   listRecommendations(runId?: string): Promise<Recommendation[]>;

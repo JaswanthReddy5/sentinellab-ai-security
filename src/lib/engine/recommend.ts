@@ -84,6 +84,18 @@ const CATEGORY_RECOMMENDATIONS: Partial<Record<AttackCategoryKey, Recommendation
   },
 };
 
+/** Looks up the remediation template for a single attack category, if one exists. Used by bypass investigation views. */
+export function getCategoryRecommendation(category: AttackCategoryKey | null, policyName = "your_policy"): { problem: string; recommendation: string; policySnippet: string } | null {
+  if (!category) return null;
+  const template = CATEGORY_RECOMMENDATIONS[category];
+  if (!template) return null;
+  return {
+    problem: template.problem,
+    recommendation: template.recommendation,
+    policySnippet: buildSnippet(policyName, template),
+  };
+}
+
 function buildSnippet(policyName: string, template: RecommendationTemplate): string {
   return `policy:
   name: ${policyName}

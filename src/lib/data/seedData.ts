@@ -143,6 +143,7 @@ export function buildSeedBundle(): SeedBundle {
       name: "prevent_customer_data_leak",
       slug: "prevent-customer-data-leak",
       description: "Prevents leakage of customer PII, confidential data, credentials, and blocks unsafe tool use.",
+      status: "active",
       createdAt: v1CreatedAt,
       updatedAt: v2CreatedAt,
       versions: policyVersions,
