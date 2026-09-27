@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { LinkButton } from "@/components/ui/Button";
 import { RunLauncher } from "@/components/runs/RunLauncher";
+import { DuplicatePolicyButton } from "@/components/policies/DuplicatePolicyButton";
 import { formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
 
@@ -25,12 +26,19 @@ export default async function PolicyDetailPage({ params }: { params: Promise<{ i
   return (
     <>
       <PageHeader
-        title={policy.name}
+        title={
+          <span className="flex items-center gap-2">
+            {policy.name} <Badge tone="neutral">{policy.status}</Badge>
+          </span>
+        }
         description={policy.description || "No description provided."}
         actions={
-          <LinkButton href={`/policies/${policy.id}/new-version`} variant="secondary">
-            <Plus size={14} /> New Version
-          </LinkButton>
+          <div className="flex gap-2">
+            {activeVersion && <DuplicatePolicyButton raw={activeVersion.raw} sourceName={policy.name} />}
+            <LinkButton href={`/policies/${policy.id}/new-version`} variant="secondary">
+              <Plus size={14} /> New Version
+            </LinkButton>
+          </div>
         }
       />
 
@@ -61,7 +69,10 @@ export default async function PolicyDetailPage({ params }: { params: Promise<{ i
                 </div>
               ))}
               {sortedVersions.length > 1 && (
-                <Link href={`/regression?policyId=${policy.id}`} className="mt-1 text-xs font-medium text-accent hover:underline">
+                <Link
+                  href={`/compare?baseline=${sortedVersions[1].id}&current=${sortedVersions[0].id}`}
+                  className="mt-1 text-xs font-medium text-accent hover:underline"
+                >
                   Compare versions →
                 </Link>
               )}

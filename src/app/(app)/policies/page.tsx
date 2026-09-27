@@ -26,6 +26,13 @@ export default async function PoliciesPage() {
         }
       />
 
+      <p className="text-xs text-muted-2">
+        Need to preview generated test cases for a policy without running a full sweep? Try the{" "}
+        <Link href="/test-generator" className="text-accent hover:underline">
+          Test Generator →
+        </Link>
+      </p>
+
       {policies.length === 0 ? (
         <EmptyState
           icon={<ShieldCheck size={28} />}
@@ -50,7 +57,10 @@ export default async function PoliciesPage() {
                         <ShieldCheck size={16} className="text-accent" />
                         <span className="font-medium text-foreground">{policy.name}</span>
                       </div>
-                      {activeVersion && <Badge tone="accent">{activeVersion.label}</Badge>}
+                      <div className="flex items-center gap-1.5">
+                        <Badge tone="neutral">{policy.status}</Badge>
+                        {activeVersion && <Badge tone="accent">{activeVersion.label}</Badge>}
+                      </div>
                     </div>
                     <p className="line-clamp-2 text-xs text-muted">{policy.description || "No description provided."}</p>
                     <div className="flex items-center justify-between text-[11px] text-muted-2">
