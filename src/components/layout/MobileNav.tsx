@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 const ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/policies", label: "Policies" },
-  { href: "/test-generator", label: "Test Generator" },
+  { href: "/compare", label: "Compare" },
   { href: "/attack-lab", label: "Attack Lab" },
+  { href: "/attack-research", label: "Security Research" },
   { href: "/regression", label: "Regression" },
   { href: "/runs", label: "Test Runs" },
   { href: "/ci", label: "CI/CD" },

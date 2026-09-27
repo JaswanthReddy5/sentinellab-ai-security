@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ShieldCheck,
-  FlaskConical,
   Swords,
   GitCompareArrows,
+  Columns3,
+  BookOpen,
   History,
   Workflow,
   FileText,
@@ -19,8 +20,9 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/policies", label: "Policies", icon: ShieldCheck },
-  { href: "/test-generator", label: "Test Generator", icon: FlaskConical },
+  { href: "/compare", label: "Compare", icon: Columns3 },
   { href: "/attack-lab", label: "Attack Lab", icon: Swords },
+  { href: "/attack-research", label: "Security Research", icon: BookOpen },
   { href: "/regression", label: "Regression", icon: GitCompareArrows },
   { href: "/runs", label: "Test Runs", icon: History },
   { href: "/ci", label: "CI/CD", icon: Workflow },
