@@ -1,0 +1,52 @@
+policy:
+  name: prevent_customer_data_leak
+  version: "2.4"
+  description: Refactored policy — tightened PII/credential rules, but tool-abuse enforcement was inadvertently relaxed.
+
+rules:
+  - detect: pii
+    action: block
+    severity: high
+
+  - detect: confidential_data
+    action: block
+    severity: high
+
+  - detect: credentials
+    action: block
+    severity: critical
+
+  - detect: secrets
+    action: block
+    severity: critical
+
+  - detect: prompt_injection
+    action: block
+    severity: high
+
+  - detect: jailbreak
+    action: block
+    severity: high
+
+  - detect: tool_abuse
+    action: review
+    severity: medium
+
+  - detect: data_exfiltration
+    action: block
+    severity: critical
+
+  - detect: privilege_escalation
+    action: block
+    severity: critical
+
+  - detect: policy_evasion
+    action: review
+    severity: medium
+
+tools:
+  send_email:
+    allowed:
+      - internal_domains
+    blocked:
+      - external_domains

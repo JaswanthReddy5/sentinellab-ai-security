@@ -1,0 +1,52 @@
+# SentinelLab example CI workflow — "GitHub Actions for AI Security Policies"
+#
+# Runs the deterministic SentinelLab test engine against any changed policy
+# file and fails the check if security coverage regresses below a configured
+# threshold, or if a security regression (previously-blocked attacks now
+# passing) is detected against the previous policy version on the base branch.
+#
+# Copy this file into your own repository's .github/workflows/ directory,
+# alongside a `policies/` folder containing your policy YAML files.
+
+name: AI Security Regression
+
+on:
+  pull_request:
+    paths:
+      - "policies/**"
+
+jobs:
+  security-regression:
+    name: Security Regression Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout base branch policy (baseline)
+        run: git show origin/${{ github.base_ref }}:policies/prevent_customer_data_leak.v2.yaml > /tmp/baseline-policy.yaml || true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security regression check
+        env:
+          MIN_SECURITY_COVERAGE: 95
+        run: |
+          npx tsx scripts/ci-security-check.ts \
+            --policy policies/prevent_customer_data_leak.v2.yaml \
+            --baseline /tmp/baseline-policy.yaml \
+            --threshold "$MIN_SECURITY_COVERAGE" \
+            --tests 500
+
+      - name: Post result
+        if: always()
+        run: echo "See job logs above for the full security regression report."
