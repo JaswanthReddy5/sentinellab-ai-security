@@ -2,9 +2,11 @@
 
 **AI Security Regression Testing Platform**
 
-> "GitHub Actions for AI Security Policies"
+> Continuous security validation for AI policies.
 
-SentinelLab is an independent AI security testing and policy regression prototype. **It is not affiliated with or endorsed by any third-party AI security company.** It demonstrates a security-testing methodology — policy → automatic test generation → adversarial + benign evaluation → regression detection → CI/CD gate — that could complement enterprise AI security platforms.
+**Live demo:** https://sentinellab-ai-security-jaswanth-a7cd.vercel.app
+
+SentinelLab is an independent AI-security research/prototype platform, inspired by publicly documented AI-security problems. **It is not affiliated with or endorsed by any third-party AI security company**, and it is not a production security solution. It demonstrates a continuous-validation methodology — policy change → automatic test generation → adversarial + benign evaluation → regression detection → root-cause analysis → policy recommendation → CI/CD gate.
 
 ---
 
@@ -12,37 +14,55 @@ SentinelLab is an independent AI security testing and policy regression prototyp
 
 AI security policies change over time — new rules get added, existing ones get refactored, models and tools get swapped. Security teams rarely have a systematic way to answer:
 
-1. Does the new policy still block known attacks?
+1. Did this security policy change make the AI system safer or weaker?
 2. Did the policy change accidentally introduce a bypass?
 3. Did the policy start blocking legitimate requests (false positives)?
-4. Which attack variants slip past the current policy?
+4. Which attack variants slip past the current policy, and why?
 5. What should the security engineer change?
 
 Most teams find out the answer to these questions only after an incident.
 
-## 2. Solution
+## 2. Why AI Security Policies Need Regression Testing
 
-SentinelLab treats AI security policies like code: every policy change is run through an automatic regression test suite — a mix of positive, negative, boundary, adversarial-mutation, and benign requests — and the result is compared against the previous version. If coverage drops or new bypasses appear, the run (and, in CI, the pull request) fails.
+Traditional application code has unit tests and CI gates that catch regressions before they ship. AI security policies — the rules that decide whether a model/agent blocks, allows, or reviews a request — almost never get the same treatment. A one-line change ("relax tool_abuse to review instead of block") can silently reopen a class of attacks that was previously closed, and nobody notices until an incident. SentinelLab treats a security policy exactly like application code: every version is run through the same deterministic test suite, and the result is diffed against the previous version.
+
+## 3. Product Overview
 
 ```
-POLICY
+POLICY CHANGE
   ↓
-AUTOMATIC TEST GENERATION
+GENERATE TESTS
   ↓
-ADVERSARIAL + BENIGN TEST SUITE
+RUN SECURITY EVALUATION
   ↓
-POLICY EVALUATION
+COMPARE VERSIONS
   ↓
-EXPECTED vs ACTUAL
+DETECT REGRESSION
   ↓
-REGRESSION DETECTION
+INVESTIGATE BYPASS
   ↓
-SECURITY METRICS
+RECOMMEND MITIGATION
   ↓
-REMEDIATION RECOMMENDATIONS
+CI/CD GATE
 ```
 
-## 3. Architecture
+Core surfaces:
+
+| Route | Purpose |
+|---|---|
+| `/` | Landing page with a live, real-data "Run Regression Demo" |
+| `/dashboard` | Security coverage, attack detection, false positives, regressions, trend charts |
+| `/policies` | Policy CRUD, versioning, duplication |
+| `/compare` | Structural policy diff + measured security effect between two versions |
+| `/attack-lab` | Attack Evolution Lab — generate & evaluate an entire category of mutated attacks |
+| `/attack-research` | Documented AI-security threats mapped to this platform's detection/test/mitigation approach |
+| `/regression` , `/regression/[id]` | Regression comparisons and persisted reports |
+| `/regression/[id]/bypass/[testCaseId]` | Bypass root-cause investigation with a suggested policy fix |
+| `/runs` , `/runs/[id]` | Test run history and detail |
+| `/ci` | CI/CD security gate simulation + downloadable GitHub Actions workflow |
+| `/reports` , `/reports/[runId]` | Printable executive security regression report |
+
+## 4. Architecture
 
 ```mermaid
 flowchart LR
@@ -58,10 +78,12 @@ flowchart LR
     subgraph Analysis
         CMP[Expected vs Actual]
         REG[Regression Engine]
+        DIFF[Policy Diff + Rule Impact]
         REC[Recommendation Engine]
     end
     subgraph Surfaces
         DASH[Dashboard]
+        COMPARE[Compare]
         CI[CI/CD Gate]
         REP[Reports]
     end
@@ -70,6 +92,8 @@ flowchart LR
     P --> AM --> EV
     BG --> EV
     EV --> CMP --> REG --> REC
+    P --> DIFF --> COMPARE
+    REG --> DIFF
     CMP --> DASH
     REG --> DASH
     REC --> DASH
@@ -93,29 +117,18 @@ sequenceDiagram
     CI-->>Repo: ✅ merge allowed / ❌ blocked
 ```
 
-## 4. Features
+## 5. Attack Generation
 
-- **Dashboard** — security coverage, attack detection, false-positive rate, regressions, critical bypasses, recent runs, trend charts.
-- **Policy Management** — form builder or YAML/JSON editor with live validation, versioning, and comparison.
-- **Automatic Test Generation** — positive / negative / boundary tests generated directly from policy rules.
-- **Attack Mutation Engine** — 12 seed attack categories × 12 deterministic transformation techniques (role-play framing, encoding, indirect injection, tool-use manipulation, etc.) — all test-only, no real malware/credentials/destructive content.
-- **Benign Test Suite** — legitimate requests used to measure false-positive rate.
-- **Deterministic Policy Evaluation Engine** — rule-based ALLOW / BLOCK / REVIEW decisions with matched-rule and confidence output. No LLM required.
-- **Expected vs Actual** — PASS / FAIL / CRITICAL_BYPASS / FALSE_POSITIVE / REVIEW_MISMATCH verdicts.
-- **Regression Testing** — compares two policy versions against the *same* test suite; surfaces newly-passing (bypassed) attacks and category-level degradation.
-- **Bypass Investigation** — full detail view (category, severity, matched rules, missing detection, recommended mitigation) for every critical bypass.
-- **Policy Recommendations** — auto-generated remediation suggestions with a copyable YAML snippet.
-- **CI/CD Simulation** — `/ci` page, a real working `scripts/ci-security-check.ts` CLI, and a downloadable example GitHub Actions workflow that fails the build below a configurable coverage threshold.
-- **Reports** — printable executive security regression report (`window.print()` → Save as PDF).
-- **Demo Mode** — the entire product works with zero configuration: no API key, no database.
+Two complementary generators, both fully deterministic (seeded PRNG, `src/lib/rng.ts`) so results are reproducible without an LLM:
 
-## 5. Demo
+- **Policy-driven generation** (`src/lib/engine/generateTests.ts`) — reads a policy's declared rules and produces positive (should ALLOW), negative (should trigger the rule's action), and boundary (ambiguous, should REVIEW) test cases per rule, plus tool-specific tests for domain-restricted tools.
+- **Attack Mutation Engine** (`src/lib/engine/mutate.ts`, `seeds.ts`) — 12 seed attacks (one per category) × 12 deterministic transformation techniques (direct rephrasing, role-play framing, instruction-hierarchy manipulation, obfuscation, unicode variation, base64-style encoding, multi-step framing, indirect/retrieved-document injection, tool-use manipulation, context switching, social engineering). Test cases only — no real malware, credentials, or destructive operational instructions are ever generated.
 
-Visit `/dashboard` — it's populated immediately with a deterministic demo dataset: a `prevent_customer_data_leak` policy evolving from `v1.0` to `v2.4`, where a well-intentioned refactor accidentally relaxed tool-abuse enforcement, producing a measurable security regression and a set of concrete bypasses. Every number on screen is *computed live* by the engine, not hard-coded.
+The **Attack Evolution Lab** (`/attack-lab`) exposes this as a product feature: pick a category (or all of them) and a mutation level, and every seed × mutation combination is generated and evaluated live against a real policy, with Blocked / Review / Bypassed counts and a click-through investigation for every bypass.
 
-## 6. Security Model
+## 6. Policy Evaluation
 
-SentinelLab's evaluation engine is **rule-based and heuristic**, not a trained classifier:
+`src/lib/engine/evaluate.ts` is a **deterministic, rule-based** evaluator — not a trained classifier:
 
 | Category | Technique |
 |---|---|
@@ -125,40 +138,27 @@ SentinelLab's evaluation engine is **rule-based and heuristic**, not a trained c
 | Tool Abuse / Data Exfiltration | domain classification (internal / external / lookalike via edit-distance), verb+sensitive-noun+destination heuristics |
 | Privilege Escalation / Excessive Agency | phrase-based heuristics for approval-bypass and unconfirmed-autonomy language |
 
-This is intentionally transparent and inspectable — every decision returns its matched rules and confidence — but it is **not** a certified or production-grade security control, and will not catch every paraphrase of an attack (this is itself demonstrated by the Attack Mutation Engine).
+Every decision returns its matched rules, missing-detection gaps, and a confidence score — intentionally transparent and inspectable, but not a certified security control. See `/attack-research` for the full threat-by-threat writeup, including stated limitations per category.
 
-## 7. Attack Categories
+## 7. Regression Detection
 
-Direct Prompt Injection · Indirect Prompt Injection · Jailbreak/Instruction Override · Sensitive Data Extraction · PII Leakage · Credential/Secret Exposure · Tool Abuse · Privilege Escalation · Data Exfiltration · Excessive Agency · Malicious Document Injection · Policy Evasion
+`src/lib/engine/regression.ts` compares two policy-version test runs evaluated against the **identical generated suite** (same seed), and reports:
 
-## 8. Policy Format
+- Security coverage before/after and the point change
+- Every test case that flipped from correctly-blocked to bypassed ("previously blocked, now passing")
+- Category-level coverage deltas (PII, Tool Abuse, Prompt Injection, etc.)
 
-```yaml
-policy:
-  name: prevent_customer_data_leak
-  version: "1.0"
-  description: Blocks leakage of PII, confidential data, and credentials.
+`src/lib/engine/policyDiff.ts` adds a **structural policy diff** (rules added/removed/changed, tool-config changes) and connects each changed rule to the number of shared test cases it actually touched and how many newly started failing — this is what powers the "Why Did Coverage Change?" section on `/compare`.
 
-rules:
-  - detect: pii
-    action: block
-    severity: high
-  - detect: confidential_data
-    action: block
-  - detect: credentials
-    action: block
+## 8. False Positive Testing
 
-tools:
-  send_email:
-    allowed:
-      - internal_domains
-    blocked:
-      - external_domains
-```
+A benign request suite (`src/lib/engine/benign.ts`) — routine tasks like summarizing a report, writing code, or emailing a colleague — is run alongside the attack suite. False Positive Rate = legitimate requests incorrectly blocked ÷ total legitimate requests. The suite intentionally includes a couple of realistic edge cases (e.g. legitimate correspondence to an external auditor/law firm) so the false-positive rate is genuinely non-zero and demonstrates a real precision/recall tradeoff, rather than an implausibly perfect 0%.
 
-`detect` ∈ `pii | confidential_data | credentials | secrets | prompt_injection | jailbreak | tool_abuse | data_exfiltration | privilege_escalation | excessive_agency | malicious_document | policy_evasion`. `action` ∈ `block | review | allow`.
+## 9. Attack Evolution
 
-## 9. CI/CD Integration
+See §5 and `/attack-lab`. The mutation engine is the mechanism by which SentinelLab demonstrates that a policy which blocks a literal attack string may not block a *paraphrase* of it — which is exactly the gap a regression suite needs to surface over time as new techniques are added to the seed set.
+
+## 10. CI/CD Integration
 
 See `/ci` in the app, `.github/workflows/ai-security-regression.yml`, and the real CLI it runs:
 
@@ -169,18 +169,47 @@ npx tsx scripts/ci-security-check.ts \
   --threshold 95
 ```
 
-Exits non-zero (failing the PR check) if coverage drops below the threshold or a regression (previously-blocked attack now passes) is detected.
+Exits non-zero (failing the PR check) if coverage drops below `MIN_SECURITY_COVERAGE` or a regression (previously-blocked attack now passes) is detected. The workflow triggers on pull requests that touch `policies/**`, installs dependencies, and runs this exact script — it is genuinely executable, not illustrative.
 
-## 10. Tech Stack
+## 11. Security Research
+
+`/attack-research` documents eight AI-security threat categories (prompt injection, indirect prompt injection, excessive tool permissions, data exfiltration, PII leakage, credential exposure, policy evasion, excessive agency), each following **Threat → Threat Model → Example → Detection Approach → Test Strategy → Mitigation → Limitations**, explicitly distinguishing the documented threat from this platform's prototype detection approach.
+
+## 12. Tech Stack
 
 - **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS v4, Recharts, hand-rolled component system (no external UI kit dependency)
 - **Backend**: Next.js Route Handlers, Zod validation
 - **Database**: PostgreSQL via Prisma (optional — see below)
 - **AI**: Provider-agnostic LLM abstraction (OpenAI / Anthropic-compatible) with a deterministic local engine as the default and fully-supported fallback
 - **Testing**: Vitest
-- **Deployment**: Vercel + GitHub Actions
+- **Deployment**: Vercel + GitHub Actions (auto-deploys on every push to `main`)
 
-## 11. Local Development
+## 13. Database Schema
+
+`prisma/schema.prisma` — the intended persistent path once `DATABASE_URL` is set:
+
+`Policy` (with `status`) → `PolicyVersion` → `SecurityTest` → `TestResult` ← `TestRun` → `Regression` (baseline/current) and `Recommendation`. `AttackCategory` is a reference table. See `prisma/seed.ts` for a script that seeds a real Postgres database with the same deterministic demo dataset used by the in-memory store.
+
+## 14. API
+
+| Endpoint | Purpose |
+|---|---|
+| `GET/POST /api/policies` | List / create policies |
+| `GET /api/policies/[id]` | Policy detail |
+| `POST /api/policies/[id]/versions` | Add a new version |
+| `POST /api/policies/[id]/test` | Run the full test suite for a policy version, persist the run |
+| `POST /api/policies/compare` | Live comparison of two policy versions (regression + structural diff + rule impact) — nothing persisted |
+| `POST /api/generate-tests` | Preview policy-generated tests |
+| `POST /api/evaluate` | Evaluate a single prompt against a policy version |
+| `POST /api/attack-lab` | Generate + evaluate every seed×mutation variant for a category |
+| `GET /api/test-runs`, `GET /api/test-runs/[id]` | Run history and detail |
+| `GET/POST /api/regression`, `GET /api/regression/[id]` | Regression list/compute/detail |
+| `GET/POST /api/recommendations` | Remediation suggestions for a run |
+| `GET /api/dashboard` | Aggregated dashboard summary |
+
+All routes validate input with Zod and return structured error responses.
+
+## 15. Local Development
 
 ```bash
 npm install
@@ -199,28 +228,22 @@ npm run db:seed
 npm run dev
 ```
 
-## 12. Environment Variables
+## 16. Demo
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `DATABASE_URL` | No | Postgres connection string. Omit to use the in-memory demo store. |
-| `OPENAI_API_KEY` | No | Enables LLM-assisted generation. Omit to use the deterministic local engine. |
-| `ANTHROPIC_API_KEY` | No | Same as above, Anthropic-compatible. |
+Visit the [live demo](https://sentinellab-ai-security-jaswanth-a7cd.vercel.app) and click **Run Regression Demo** on the landing page — it walks through a real `prevent_customer_data_leak` policy evolving from `v1.0` to `v2.4`, where a well-intentioned refactor relaxed tool-abuse enforcement, producing a measurable security regression. Every number is computed live by the engine, not hard-coded. From there, **Investigate Bypasses** opens a persisted regression report with click-through root-cause analysis for individual bypasses.
 
-See `.env.example`. **Nothing is required to run the full product.**
+## 17. Deployment
 
-## 13. Deployment
+Deployed to Vercel, connected to GitHub for automatic deploys on every push to `main`. Build pipeline: `prisma generate && next build`. If `DATABASE_URL` is not configured on Vercel, the deployed app automatically runs in demo mode — this is by design, not a fallback for a broken deployment. The public demo requires **zero** environment variables.
 
-Deployed to Vercel. Build pipeline: `prisma generate && next build`. If `DATABASE_URL` is not configured on Vercel, the deployed app automatically runs in demo mode — this is by design, not a fallback for a broken deployment.
+## 18. Limitations
 
-## 14. Limitations
-
-- The evaluation engine is regex/heuristic-based, not a trained model — it will miss sufficiently novel paraphrases (this is also what the Attack Mutation Engine is built to demonstrate).
-- In demo mode (no `DATABASE_URL`), data is held in an in-memory singleton scoped to the running server process/serverless instance — it resets on cold start and is not shared across instances. The Prisma schema and seed script provide a fully persistent path once a database is configured.
-- The "Prototype Security Evaluation" scorecard is explicitly not a certified security audit.
+- The evaluation engine is regex/heuristic-based, not a trained model — it will miss sufficiently novel paraphrases (this is also what the Attack Mutation Engine is built to demonstrate). See `/attack-research` for a per-category breakdown of known limitations.
+- In demo mode (no `DATABASE_URL`), data is held in an in-memory singleton scoped to the running server process/serverless instance — it resets on cold start and is not necessarily shared across separate serverless function instances. The Prisma schema and seed script provide a fully persistent path once a database is configured.
+- The "Prototype Security Evaluation" scorecard is explicitly not a certified security audit or compliance claim.
 - LLM-assisted generation is best-effort; on any provider error it silently falls back to the deterministic engine.
 
-## 15. Future Work
+## 19. Future Work
 
 - Real LLM-graded semantic evaluation as a second opinion alongside the rule-based engine
 - Multi-tenant auth and team workspaces
@@ -228,6 +251,10 @@ Deployed to Vercel. Build pipeline: `prisma generate && next build`. If `DATABAS
 - Richer document/RAG-context ingestion for indirect-injection testing
 - Slack/GitHub PR-comment integration for CI results
 
-## 16. Disclaimer
+## 20. Disclaimer
 
-SentinelLab is an independent prototype built to demonstrate an AI security regression-testing methodology end-to-end. It is not affiliated with, endorsed by, or representative of any specific commercial AI security vendor's product or detection engine. Its rule-based evaluator is illustrative, not production-grade or independently audited.
+SentinelLab is an independent research/portfolio prototype built to demonstrate an AI security regression-testing methodology end-to-end. It is not affiliated with, endorsed by, or representative of any specific commercial AI security vendor's product or detection engine, and it makes no compliance or certification claims. Its rule-based evaluator is illustrative, not production-grade or independently audited.
+
+---
+
+See also: [CONTRIBUTING.md](./CONTRIBUTING.md), [SECURITY.md](./SECURITY.md), [LICENSE](./LICENSE).
