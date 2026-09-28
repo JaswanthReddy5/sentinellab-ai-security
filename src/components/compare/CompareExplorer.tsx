@@ -8,8 +8,15 @@ import { StatTile } from "@/components/ui/StatTile";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/Table";
 import { CategoryComparisonChart } from "@/components/charts/CategoryComparisonChart";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FlowDiagram, type FlowStep } from "@/components/ui/FlowDiagram";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { BypassInvestigationCard } from "@/components/investigation/BypassInvestigationCard";
 import { categoryLabel } from "@/lib/categories";
-import type { Policy, Regression } from "@/lib/types";
+import { truncate } from "@/lib/utils";
+import { pickTopBypass } from "@/lib/engine/regression";
+import { buildEvaluationChecklist } from "@/lib/engine/checklist";
+import { getCategoryRecommendation } from "@/lib/engine/recommend";
+import type { Policy, Regression, TestRun } from "@/lib/types";
 import type { PolicyDiff, RuleImpact } from "@/lib/engine/policyDiff";
 
 interface VersionOption {
@@ -22,6 +29,8 @@ interface CompareResponse {
   regression: Regression;
   diff: PolicyDiff;
   ruleImpact: RuleImpact[];
+  baselineRun: TestRun;
+  currentRun: TestRun;
   baselineCategoryBreakdown: Array<{ category: string; total: number; blocked: number; coverage: number }>;
   currentCategoryBreakdown: Array<{ category: string; total: number; blocked: number; coverage: number }>;
 }
@@ -73,11 +82,44 @@ export function CompareExplorer({ policies, initialBaseline, initialCurrent }: {
     };
   }, [baselineId, currentId]);
 
+  const currentVersionDoc = useMemo(
+    () => policies.flatMap((p) => p.versions).find((v) => v.id === currentId)?.document ?? null,
+    [policies, currentId]
+  );
+
   if (versions.length < 2) {
     return <EmptyState title="Need at least two policy versions" description="Create a second policy version to compare." />;
   }
 
   const regression = data?.regression;
+  const worstCategory = regression ? [...regression.categoryComparison].sort((a, b) => a.delta - b.delta)[0] ?? null : null;
+  const topBypass = regression ? pickTopBypass(regression) : null;
+
+  const flowSteps: FlowStep[] = [];
+  if (data && regression) {
+    flowSteps.push(
+      { label: "Policy", value: data.currentRun.policyVersionLabel },
+      { label: "Changed From", value: data.baselineRun.policyVersionLabel },
+      { label: "Ran", value: `${data.currentRun.stats.totalTests} Tests` },
+      { label: "Compared With", value: data.baselineRun.policyVersionLabel },
+      {
+        label: regression.isRegression ? "🚨 Regression" : "✅ No Regression",
+        value: `${regression.previousCoverage}% → ${regression.currentCoverage}%`,
+        tone: regression.isRegression ? "danger" : "success",
+      }
+    );
+    if (regression.isRegression) {
+      flowSteps.push({ label: "New Bypasses", value: regression.newBypassCount, tone: "danger" });
+      flowSteps.push({ label: "Why?", value: "Rule-level impact below", tone: "warning" });
+      if (worstCategory) {
+        flowSteps.push({ label: "Worst-Hit Category", value: `${categoryLabel(worstCategory.category)} (${worstCategory.delta}%)`, tone: "warning" });
+      }
+      if (topBypass) {
+        flowSteps.push({ label: "Exact Attack", value: truncate(topBypass.prompt, 70), mono: true });
+        flowSteps.push({ label: "Root Cause + Fix", value: "Shown below", tone: "accent" });
+      }
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,6 +151,8 @@ export function CompareExplorer({ policies, initialBaseline, initialCurrent }: {
 
       {regression && data && (
         <>
+          <FlowDiagram steps={flowSteps} />
+
           <div
             className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
               regression.isRegression ? "border-danger/40 bg-danger/5" : "border-success/40 bg-success/5"
@@ -148,7 +192,7 @@ export function CompareExplorer({ policies, initialBaseline, initialCurrent }: {
               </THead>
               <TBody>
                 {regression.categoryComparison.map((c) => (
-                  <TR key={c.category}>
+                  <TR key={c.category} className={worstCategory && c.category === worstCategory.category ? "bg-danger/5" : undefined}>
                     <TD>{categoryLabel(c.category)}</TD>
                     <TD>{c.baseline}%</TD>
                     <TD>{c.current}%</TD>
@@ -213,6 +257,34 @@ export function CompareExplorer({ policies, initialBaseline, initialCurrent }: {
                 </TBody>
               </Table>
             </div>
+          )}
+
+          {topBypass && currentVersionDoc && (
+            <Card>
+              <CardHeader>
+                <div>
+                  <CardTitle>Show Exact Attack, Root Cause &amp; Fix</CardTitle>
+                  <CardDescription>The single highest-severity bypass driving this regression.</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <BypassInvestigationCard
+                  categoryLabel={categoryLabel(topBypass.attackCategory)}
+                  severity={topBypass.severity}
+                  mutationType={topBypass.mutationType}
+                  prompt={topBypass.prompt}
+                  expectedAction="BLOCK"
+                  previousAction={topBypass.previousAction}
+                  currentAction={topBypass.currentAction}
+                  checklist={buildEvaluationChecklist(currentVersionDoc, topBypass.attackCategory)}
+                  rootCause={
+                    getCategoryRecommendation(topBypass.attackCategory, currentVersionDoc.policy.name)?.problem ??
+                    "The current policy no longer applies a control strong enough to block this test case."
+                  }
+                  recommendation={getCategoryRecommendation(topBypass.attackCategory, currentVersionDoc.policy.name)}
+                />
+              </CardContent>
+            </Card>
           )}
         </>
       )}

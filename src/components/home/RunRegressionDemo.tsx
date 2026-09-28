@@ -19,6 +19,7 @@ export interface RegressionDemoData {
   newBypassCount: number;
   newFalsePositiveCount: number;
   topRegression: { category: AttackCategoryKey; baseline: number; current: number; newBypasses: number } | null;
+  topBypassPrompt: string | null;
 }
 
 type Stage = 0 | 1 | 2 | 3 | 4;
@@ -95,15 +96,24 @@ export function RunRegressionDemo({ data }: { data: RegressionDemoData }) {
             <Stat label="New False Positives" value={String(data.newFalsePositiveCount)} />
           </div>
           {data.topRegression && (
-            <div className="mb-5 rounded-lg border border-border-soft bg-surface-2/50 p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-2">Top Regression</div>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-sm font-semibold text-foreground">{categoryLabel(data.topRegression.category)}</span>
-                <span className="text-xs text-muted">
-                  {data.topRegression.baseline}% → {data.topRegression.current}% · {data.topRegression.newBypasses} new bypass
-                  {data.topRegression.newBypasses === 1 ? "" : "es"}
-                </span>
+            <div className="mb-5 flex flex-col gap-3">
+              <div className="text-center text-[10px] font-semibold uppercase tracking-wide text-muted-2">↓ Why? ↓</div>
+              <div className="rounded-lg border border-border-soft bg-surface-2/50 p-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-2">Worst-Hit Category</div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-sm font-semibold text-foreground">{categoryLabel(data.topRegression.category)}</span>
+                  <span className="text-xs text-muted">
+                    {data.topRegression.baseline}% → {data.topRegression.current}% · {data.topRegression.newBypasses} new bypass
+                    {data.topRegression.newBypasses === 1 ? "" : "es"}
+                  </span>
+                </div>
               </div>
+              {data.topBypassPrompt && (
+                <div className="rounded-lg border border-danger/30 bg-danger/5 p-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-2">Exact Attack That Got Through</div>
+                  <p className="mono mt-1 text-xs text-foreground/90">{data.topBypassPrompt}</p>
+                </div>
+              )}
             </div>
           )}
           <div className="flex flex-wrap gap-2">

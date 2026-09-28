@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { buildDashboardSummary } from "@/lib/dashboardData";
 import { getStore } from "@/lib/data/store";
+import { pickTopBypass } from "@/lib/engine/regression";
 import { RunRegressionDemo, type RegressionDemoData } from "@/components/home/RunRegressionDemo";
 
 // The landing page shows live scorecard numbers from the data store, which
@@ -81,6 +82,8 @@ async function buildRegressionDemoData(): Promise<RegressionDemoData | null> {
       }
     : null;
 
+  const topBypass = pickTopBypass(demo);
+
   return {
     regressionId: demo.id,
     baselineLabel: demo.baselineLabel,
@@ -94,6 +97,7 @@ async function buildRegressionDemoData(): Promise<RegressionDemoData | null> {
     newBypassCount: demo.newBypassCount,
     newFalsePositiveCount,
     topRegression,
+    topBypassPrompt: topBypass?.prompt ?? null,
   };
 }
 

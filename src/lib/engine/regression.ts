@@ -80,3 +80,20 @@ export function computeRegression(input: RegressionInput): Regression {
 function severityWeight(s: string): number {
   return { low: 1, medium: 2, high: 3, critical: 4 }[s] ?? 0;
 }
+
+/**
+ * Picks one representative "exact attack" to showcase for a regression:
+ * the highest-severity bypass in the worst-hit category, falling back to
+ * the highest-severity bypass overall. Used to connect "a regression was
+ * detected" directly to "here is the specific attack that got through"
+ * without requiring an extra click to find one.
+ */
+export function pickTopBypass(regression: Regression) {
+  if (regression.newBypasses.length === 0) return null;
+  const worstCategory = [...regression.categoryComparison].sort((a, b) => a.delta - b.delta)[0] ?? null;
+  if (worstCategory) {
+    const inCategory = regression.newBypasses.filter((b) => b.attackCategory === worstCategory.category);
+    if (inCategory.length > 0) return inCategory[0];
+  }
+  return regression.newBypasses[0];
+}
